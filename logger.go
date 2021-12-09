@@ -42,15 +42,6 @@ type Logger interface {
 	// With returns a new Logger decorated with the provided key-value pairs.
 	With(keyValuePairs ...interface{}) Logger
 
-	// KeyValuesToContext takes provided key-value pairs and stores them in
-	// Context. If a Logger attaches a Context to itself, it will retrieve the
-	// values found in Context and adds them to the log lines it produces. The
-	// Logger calling this function does not need to have a relationship
-	// with a Logger object attaching the Context. If values already exist in
-	// the source Context, the target Context will contain both old and new
-	// values, as new values will be appended to the existing values.
-	KeyValuesToContext(ctx context.Context, keyValuePairs ...interface{}) context.Context
-
 	// Context returns a new Logger having access to Context for inclusion of
 	// registered key-value pairs found in Context. If a Metric is also attached
 	// to the Logger, the Metric LabelValue directives found in Context will
@@ -65,10 +56,9 @@ type Logger interface {
 	Metric(m Metric) Logger
 }
 
-// KeyValuesToContext takes provided key-value pairs and places them in Context.
-// Logging implementations should try to use this function instead of rolling
-// their own. This allows for different logger implementations to collaborate,
-// if they are simultaneously present in an application.
+// KeyValuesToContext takes provided Context, retrieves the already stored
+// key-value pairs from it, appends the in this function provided key-value
+// pairs and stores the result in the returned Context.
 func KeyValuesToContext(ctx context.Context, keyValuePairs ...interface{}) context.Context {
 	if len(keyValuePairs) == 0 {
 		return ctx
@@ -82,12 +72,18 @@ func KeyValuesToContext(ctx context.Context, keyValuePairs ...interface{}) conte
 }
 
 // KeyValuesFromContext retrieves key-value pairs that might be stored in the
-// provided Context. Logging implementations should try to use this function
-// instead of rolling their own. This allows for different loggers to
-// collaborate.
+// provided Context. Logging implementations must use this function to retrieve
+// the key-value pairs they need to include if a Context object was attached to
+// them.
 func KeyValuesFromContext(ctx context.Context) (keyValuePairs []interface{}) {
 	keyValuePairs, _ = ctx.Value(ctxKVP).([]interface{})
 	return
+}
+
+// RemoveKeyValuesFromContext returns a Context that copies the provided Context
+// but removes the key-value pairs that were stored.
+func RemoveKeyValuesFromContext(ctx context.Context) context.Context {
+	return context.WithValue(ctx, ctxKVP, nil)
 }
 
 type tCtxKVP string
