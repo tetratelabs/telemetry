@@ -20,4 +20,5 @@ to this file so it may be included in this list.
 | repository | supported interfaces | notes |
 | --- | --- | --- | 
 | tetratelabs/[telemetry-gokit-log](https://github.com/tetratelabs/telemetry-gokit-log) | Logger | [Go kit log](https://github.com/go-kit/log) bridge |
+| tetratelabs/[log](https://github.com/tetratelabs/log/tree/v2) | Logger | Scoped structured/unstructured logger bridge |
 | tetratelabs/[telemetry-opencensus](https://github.com/tetratelabs/telemetry-opencensus) | Metrics | [OpenCensus metrics](https://github.com/census-instrumentation/opencensus-go) bridge |
