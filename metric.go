@@ -62,11 +62,6 @@ type Metric interface {
 	// It also allows a way to clear out LabelValues found in an attached
 	// Context if needing to sanitize.
 	With(labelValues ...LabelValue) Metric
-
-	// ToLogger takes a Logger and returns a new Logger interface which will
-	// emit an Increment() on Logger.Info and Logger.Error calls for this
-	// metric.
-	ToLogger(Logger) Logger
 }
 
 // LabelValue holds an action to take on a metric dimension's value.

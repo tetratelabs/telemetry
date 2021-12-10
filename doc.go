@@ -69,8 +69,7 @@ or component entry point the ability to provide a Logger implementation,
 this can be easily achieved.
 
 	* Zero dependencies.
-We almost succeeded, we do need Context from the Go standard library, and
-obviously we pull in this interface for our libraries and packages.
+Look at that lovely very empty go.mod and non-existent go.sum file.
 
 */
 package telemetry
