@@ -33,7 +33,6 @@ var (
 	lock          = sync.Mutex{}
 	scopes        = make(map[string]*scope)
 	uninitialized = make(map[string][]*scope)
-	defaultLevel  = Info
 	defaultLogger level.Logger
 
 	// PanicOnUninitialized can be used when testing for sequencing issues
@@ -266,7 +265,7 @@ func PrintRegistered() {
 	fmt.Printf("- %-*s [%-5s]  %s\n",
 		pad,
 		"default",
-		levelToString[defaultLevel],
+		levelToString[DefaultLevel()],
 		"",
 	)
 	for _, n := range names {
