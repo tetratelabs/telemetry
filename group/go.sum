@@ -12,5 +12,5 @@ github.com/tetratelabs/multierror v1.1.0/go.mod h1:kH3SzI/z+FwEbV9bxQDx4GiIgE2dj
 github.com/tetratelabs/run v0.1.0 h1:8XwkuD4oz13FwW1EwaPfFb65fyn86u5/kuFEsAerbDg=
 github.com/tetratelabs/run v0.1.0/go.mod h1:fhjT5Vs96raNf1CgCEcKKO6eM/AHAZY+XA1EqSslLRY=
 github.com/tetratelabs/telemetry v0.1.0/go.mod h1:0ML85UszIK/NTN/DgA8DtpWA3iPSri02KmG7CExVOdk=
-github.com/tetratelabs/telemetry v0.5.0 h1:j16I9Lrkx5irMk+7SIuIUSVmHnXTO7ptMg2c6SseGBw=
-github.com/tetratelabs/telemetry v0.5.0/go.mod h1:jDUcf1A2u4F5V1io5RdipM/bKz/hFCsx/RAgGopC37s=
+github.com/tetratelabs/telemetry v0.5.1 h1:XMtKjM0dzssAcH1xalaTru4LHbfiLpC8J/aIRVChzl4=
+github.com/tetratelabs/telemetry v0.5.1/go.mod h1:jDUcf1A2u4F5V1io5RdipM/bKz/hFCsx/RAgGopC37s=
