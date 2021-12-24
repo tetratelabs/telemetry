@@ -48,6 +48,10 @@ type Logger interface {
 
 	// Level returns the currently configured logging level.
 	Level() Value
+
+	// New returns a new Logger based on the original implementation but with
+	// the log level decoupled.
+	New() telemetry.Logger
 }
 
 // Wrap takes a telemetry.Logger implementation and wraps it with Log Level
@@ -110,6 +114,14 @@ func (l *wrapper) Metric(m telemetry.Metric) telemetry.Logger {
 	return &wrapper{
 		logger: l.logger.Metric(m),
 		lvl:    l.lvl,
+	}
+}
+
+func (l *wrapper) New() telemetry.Logger {
+	lvl := atomic.LoadInt32(l.lvl)
+	return &wrapper{
+		logger: l.logger.Context(context.Background()),
+		lvl:    &lvl,
 	}
 }
 
