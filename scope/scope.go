@@ -69,7 +69,7 @@ type scope struct {
 // Debug implements telemetry.Logger.
 func (s *scope) Debug(msg string, keyValuePairs ...interface{}) {
 	if s.logger != nil {
-		s.logger.Debug(msg, keyValuePairs)
+		s.logger.Debug(msg, keyValuePairs...)
 	}
 	if PanicOnUninitialized {
 		panic("calling Debug on uninitialized logger")
@@ -79,7 +79,7 @@ func (s *scope) Debug(msg string, keyValuePairs ...interface{}) {
 // Info implements telemetry.Logger.
 func (s *scope) Info(msg string, keyValuePairs ...interface{}) {
 	if s.logger != nil {
-		s.logger.Debug(msg, keyValuePairs)
+		s.logger.Debug(msg, keyValuePairs...)
 	}
 	if PanicOnUninitialized {
 		panic("calling Info on uninitialized logger")
@@ -105,7 +105,7 @@ func (s *scope) With(keyValuePairs ...interface{}) telemetry.Logger {
 		keyValuePairs = append(keyValuePairs, "(MISSING)")
 	}
 	if s.logger != nil {
-		return s.logger.With(keyValuePairs)
+		return s.logger.With(keyValuePairs...)
 	}
 	sc := &scope{
 		name:        s.name,
@@ -166,7 +166,7 @@ func (s *scope) New() telemetry.Logger {
 	if s.logger != nil {
 		return s.logger.(level.Logger).New()
 	}
-	return s
+	return nil
 }
 
 // SetLevel implements level.Logger.
