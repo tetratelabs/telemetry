@@ -18,6 +18,8 @@ package scope
 
 import (
 	"context"
+	"fmt"
+	"sort"
 	"strings"
 	"sync"
 
@@ -30,8 +32,9 @@ var (
 
 	lock          = sync.Mutex{}
 	scopes        = make(map[string]*scope)
-	uninitialized []*scope
-	defaultLogger telemetry.Logger
+	uninitialized = make(map[string][]*scope)
+	defaultLevel  = Info
+	defaultLogger level.Logger
 
 	// PanicOnUninitialized can be used when testing for sequencing issues
 	// between creating log lines and initializing the actual logger
@@ -46,6 +49,13 @@ const (
 	Info  = level.Info
 	Debug = level.Debug
 )
+
+var levelToString = map[level.Value]string{
+	None:  "none",
+	Error: "error",
+	Info:  "info",
+	Debug: "debug",
+}
 
 // scope provides scoped logging functionality.
 type scope struct {
@@ -111,7 +121,7 @@ func (s *scope) With(keyValuePairs ...interface{}) telemetry.Logger {
 			sc.kvs = append(sc.kvs, k, keyValuePairs[i+1])
 		}
 	}
-	uninitialized = append(uninitialized, sc)
+	uninitialized[s.name] = append(uninitialized[s.name], sc)
 
 	return sc
 }
@@ -129,7 +139,7 @@ func (s *scope) Context(ctx context.Context) telemetry.Logger {
 		metric:      s.metric,
 	}
 	copy(sc.kvs, s.kvs)
-	uninitialized = append(uninitialized, sc)
+	uninitialized[s.name] = append(uninitialized[s.name], sc)
 
 	return sc
 }
@@ -147,9 +157,17 @@ func (s *scope) Metric(m telemetry.Metric) telemetry.Logger {
 		metric:      s.metric,
 	}
 	copy(scope.kvs, s.kvs)
-	uninitialized = append(uninitialized, scope)
+	uninitialized[s.name] = append(uninitialized[s.name], scope)
 
 	return scope
+}
+
+// New implements level.Logger.
+func (s *scope) New() telemetry.Logger {
+	if s.logger != nil {
+		return s.logger.(level.Logger).New()
+	}
+	return s
 }
 
 // SetLevel implements level.Logger.
@@ -176,18 +194,20 @@ func Register(name, description string) level.Logger {
 	lock.Lock()
 	defer lock.Unlock()
 
+	name = strings.ToLower(strings.Trim(name, "\r\n\t "))
 	sc, ok := scopes[name]
 	if !ok {
 		sc = &scope{
-			logger:      defaultLogger,
 			name:        name,
 			description: description,
 		}
-
+		if defaultLogger != nil {
+			sc.logger = defaultLogger.New()
+		}
 		scopes[name] = sc
 	}
 	if defaultLogger == nil {
-		uninitialized = append(uninitialized, sc)
+		uninitialized[name] = append(uninitialized[name], sc)
 	}
 
 	return sc
@@ -198,6 +218,7 @@ func Find(name string) level.Logger {
 	lock.Lock()
 	defer lock.Unlock()
 
+	name = strings.ToLower(strings.Trim(name, "\r\n\t "))
 	return scopes[name]
 }
 
@@ -227,14 +248,54 @@ func Names() []string {
 	return s
 }
 
-// SetDefaultLevel sets all scoped loggers to the provided logging level.
+func PrintRegistered() {
+	lock.Lock()
+	defer lock.Unlock()
+
+	pad := 7
+	names := make([]string, 0, len(scopes))
+	for n := range scopes {
+		names = append(names, n)
+		if len(n) > pad {
+			pad = len(n)
+		}
+	}
+	sort.Strings(names)
+
+	fmt.Println("registered logging scopes:")
+	fmt.Printf("- %-*s [%-5s]  %s\n",
+		pad,
+		"default",
+		levelToString[defaultLevel],
+		"",
+	)
+	for _, n := range names {
+		sc := scopes[n]
+		fmt.Printf("- %-*s [%-5s]  %s\n",
+			pad,
+			sc.name,
+			levelToString[sc.Level()],
+			sc.description,
+		)
+	}
+}
+
+// SetDefaultLevel sets the default level used for new scopes.
 func SetDefaultLevel(lvl level.Value) {
 	lock.Lock()
 	defer lock.Unlock()
 
-	for _, sc := range scopes {
-		sc.SetLevel(lvl)
+	if defaultLogger != nil {
+		defaultLogger.SetLevel(lvl)
 	}
+}
+
+// DefaultLevel returns the logging level used for new scopes.
+func DefaultLevel() level.Value {
+	if defaultLogger != nil {
+		return defaultLogger.Level()
+	}
+	return level.None
 }
 
 // UseLogger takes a logger and updates already registered scopes to use it.
@@ -252,29 +313,32 @@ func UseLogger(logger telemetry.Logger) {
 		return
 	}
 
-	// if provided Logger does not provide log level logic, wrap it.
-	if _, ok := logger.(level.Logger); !ok {
-		logger = level.Wrap(logger)
-	}
 	// update our default logger
-	defaultLogger = logger
+	// if provided Logger does not provide log level logic, wrap it.
+	var ok bool
+	defaultLogger, ok = logger.(level.Logger)
+	if !ok {
+		defaultLogger = level.Wrap(logger)
+	}
 
 	// adjust already registered scopes
-	for _, sc := range uninitialized {
-		l := logger
-		if sc.ctx != nil {
-			l = l.Context(sc.ctx)
+	for _, scopes := range uninitialized {
+		l := defaultLogger.New()
+		for _, sc := range scopes {
+			if sc.ctx != nil {
+				l = l.Context(sc.ctx)
+			}
+			if sc.metric != nil {
+				l = l.Metric(sc.metric)
+			}
+			if len(sc.kvs) > 0 {
+				l = l.With(sc.kvs...)
+			}
+			sc.logger = l
+			sc.kvs = nil
+			sc.ctx = nil
+			sc.metric = nil
 		}
-		if sc.metric != nil {
-			l = l.Metric(sc.metric)
-		}
-		if len(sc.kvs) > 0 {
-			l = l.With(sc.kvs...)
-		}
-		sc.logger = l
-		sc.kvs = nil
-		sc.ctx = nil
-		sc.metric = nil
 	}
 	uninitialized = nil
 }
