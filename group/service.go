@@ -45,6 +45,13 @@ var stringToLevel = map[string]level.Value{
 	"debug": level.Debug,
 }
 
+var levelToString = map[level.Value]string{
+	level.None:  "none",
+	level.Error: "error",
+	level.Info:  "info",
+	level.Debug: "debug",
+}
+
 type service struct {
 	outputLevels string
 }
@@ -64,16 +71,19 @@ func (s service) Name() string {
 // FlagSet implements run.Config.
 func (s *service) FlagSet() *run.FlagSet {
 	if s.outputLevels == "" {
-		s.outputLevels = DefaultLogOutputLevel
+		s.outputLevels = levelToString[scope.DefaultLevel()]
+		if s.outputLevels == "" {
+			s.outputLevels = DefaultLogOutputLevel
+		}
 	}
 	fs := run.NewFlagSet("Logging options")
 	fs.StringVar(&s.outputLevels, LogOutputLevel, s.outputLevels, fmt.Sprintf(
 		"Comma-separated minimum per-scope logging level of messages to output, "+
 			"in the form of [default_level,]<scope>:<level>,<scope>:<level>,... "+
 			"where scope can be one of [%s] and default_level or level can be "+
-			"one of [%s, %s, %s]",
+			"one of [%s]",
 		strings.Join(scope.Names(), ", "),
-		"debug", "info", "error",
+		strings.Join([]string{"debug", "info", "error", "none"}, ", "),
 	))
 
 	return fs
@@ -98,6 +108,9 @@ func (s *service) Validate() error {
 				continue
 			}
 			scope.SetDefaultLevel(lvl)
+			for _, sc := range scope.List() {
+				sc.SetLevel(lvl)
+			}
 		case 2:
 			lvl, ok := stringToLevel[strings.Trim(osl[1], "\r\n\t ")]
 			if !ok {
