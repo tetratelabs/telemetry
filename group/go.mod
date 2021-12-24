@@ -2,7 +2,6 @@ module github.com/tetratelabs/telemetry/group
 
 go 1.17
 
-
 require (
 	github.com/tetratelabs/multierror v1.1.0
 	github.com/tetratelabs/run v0.1.0
