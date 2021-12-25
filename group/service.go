@@ -107,10 +107,7 @@ func (s *service) Validate() error {
 				mErr = multierror.Append(mErr, fmt.Errorf("%q is not a valid log level", ol))
 				continue
 			}
-			scope.SetDefaultLevel(lvl)
-			for _, sc := range scope.List() {
-				sc.SetLevel(lvl)
-			}
+			scope.SetAllScopes(lvl)
 		case 2:
 			lvl, ok := stringToLevel[strings.Trim(osl[1], "\r\n\t ")]
 			if !ok {
