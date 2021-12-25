@@ -247,6 +247,8 @@ func Names() []string {
 	return s
 }
 
+// PrintRegistered outputs a list of registered scopes with their log level on
+// stdout.
 func PrintRegistered() {
 	lock.Lock()
 	defer lock.Unlock()
@@ -276,6 +278,20 @@ func PrintRegistered() {
 			levelToString[sc.Level()],
 			sc.description,
 		)
+	}
+}
+
+// SetAllScopes sets the logging level to all existing scopes and uses this
+// level for new scopes.
+func SetAllScopes(lvl level.Value) {
+	lock.Lock()
+	defer lock.Unlock()
+
+	if defaultLogger != nil {
+		defaultLogger.SetLevel(lvl)
+		for _, sc := range scopes {
+			sc.SetLevel(lvl)
+		}
 	}
 }
 

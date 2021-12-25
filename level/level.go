@@ -71,6 +71,8 @@ func Wrap(l telemetry.Logger) Logger {
 var _ Logger = (*wrapper)(nil)
 
 type wrapper struct {
+	ctx    context.Context
+	metric telemetry.Metric
 	logger telemetry.Logger
 	lvl    *int32
 }
@@ -83,6 +85,9 @@ func (l *wrapper) Debug(msg string, keyValuePairs ...interface{}) {
 }
 
 func (l *wrapper) Info(msg string, keyValuePairs ...interface{}) {
+	if l.metric != nil {
+		l.metric.RecordContext(l.ctx, 1)
+	}
 	if atomic.LoadInt32(l.lvl) >= int32(Info) {
 		keyValuePairs = append(InfoLevel, keyValuePairs...)
 		l.logger.Info(msg, keyValuePairs...)
@@ -90,6 +95,9 @@ func (l *wrapper) Info(msg string, keyValuePairs ...interface{}) {
 }
 
 func (l *wrapper) Error(msg string, err error, keyValuePairs ...interface{}) {
+	if l.metric != nil {
+		l.metric.RecordContext(l.ctx, 1)
+	}
 	if atomic.LoadInt32(l.lvl) >= int32(Error) {
 		keyValuePairs = append(ErrorLevel, keyValuePairs...)
 		l.logger.Error(msg, err, keyValuePairs...)
@@ -100,6 +108,8 @@ func (l *wrapper) With(keyValuePairs ...interface{}) telemetry.Logger {
 	return &wrapper{
 		logger: l.logger.With(keyValuePairs...),
 		lvl:    l.lvl,
+		metric: l.metric,
+		ctx:    l.ctx,
 	}
 }
 
@@ -107,21 +117,29 @@ func (l *wrapper) Context(ctx context.Context) telemetry.Logger {
 	return &wrapper{
 		logger: l.logger.Context(ctx),
 		lvl:    l.lvl,
+		metric: l.metric,
+		ctx:    l.ctx,
 	}
 }
 
 func (l *wrapper) Metric(m telemetry.Metric) telemetry.Logger {
 	return &wrapper{
-		logger: l.logger.Metric(m),
+		logger: l.logger.Context(l.ctx), // force new logger object
 		lvl:    l.lvl,
+		metric: m,
+		ctx:    l.ctx,
 	}
 }
 
 func (l *wrapper) New() telemetry.Logger {
 	lvl := atomic.LoadInt32(l.lvl)
+	// since we take care of metrics, we don't provide it to the underlying
+	// implementation.
 	return &wrapper{
-		logger: l.logger.Context(context.Background()),
+		logger: l.logger.Context(l.ctx), // force new logger object
 		lvl:    &lvl,
+		metric: l.metric,
+		ctx:    l.ctx,
 	}
 }
 
