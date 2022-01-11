@@ -1,4 +1,4 @@
-// Copyright (c) Tetrate, Inc 2021.
+// Copyright 2022 Tetrate
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,9 +14,7 @@
 
 package telemetry
 
-import (
-	"context"
-)
+import "context"
 
 // Logger provides a simple yet powerful logging abstraction.
 type Logger interface {
@@ -39,6 +37,17 @@ type Logger interface {
 	// metrics backend.
 	Error(msg string, err error, keyValuePairs ...interface{})
 
+	// SetLevel provides the ability to set the desired logging level.
+	// This function can be used at runtime and must be safe for concurrent use.
+	//
+	// Note for Logger implementations, When creating a new Logger with the
+	// With, Context, or Metric methods, the level should be set-able for all
+	// from any of the Loggers sharing the same root Logger.
+	SetLevel(lvl Level)
+
+	// Level returns the currently configured logging level.
+	Level() Level
+
 	// With returns a new Logger decorated with the provided key-value pairs.
 	With(keyValuePairs ...interface{}) Logger
 
@@ -54,6 +63,9 @@ type Logger interface {
 	// messages, Info messages even though silenced from a logging perspective,
 	// will still emit their Metric measurements.
 	Metric(m Metric) Logger
+
+	// Clone returns a new Logger based on the original implementation.
+	Clone() Logger
 }
 
 // KeyValuesToContext takes provided Context, retrieves the already stored

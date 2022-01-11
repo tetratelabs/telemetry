@@ -1,5 +1,4 @@
-// Copyright (c) Tetrate, Inc 2021.
-// Copyright 2019 Istio Authors
+// Copyright 2022 Tetrate
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.

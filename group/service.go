@@ -1,4 +1,4 @@
-// Copyright (c) Tetrate, Inc 2021.
+// Copyright 2022 Tetrate
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -24,33 +24,18 @@ import (
 	"github.com/tetratelabs/run"
 
 	"github.com/tetratelabs/telemetry"
-	"github.com/tetratelabs/telemetry/level"
 	"github.com/tetratelabs/telemetry/scope"
 )
 
-// Exported flags.
 const (
+	// LogOutputLevel is the name of the flag used to configure the logging levels.
 	LogOutputLevel = "log-output-level"
 )
 
-// Default configuration values.
 const (
+	// DefaultLogOutputLevel is the default level that will be configured for the loggers.
 	DefaultLogOutputLevel = "info"
 )
-
-var stringToLevel = map[string]level.Value{
-	"none":  level.None,
-	"error": level.Error,
-	"info":  level.Info,
-	"debug": level.Debug,
-}
-
-var levelToString = map[level.Value]string{
-	level.None:  "none",
-	level.Error: "error",
-	level.Info:  "info",
-	level.Debug: "debug",
-}
 
 type service struct {
 	outputLevels string
@@ -71,7 +56,7 @@ func (s service) Name() string {
 // FlagSet implements run.Config.
 func (s *service) FlagSet() *run.FlagSet {
 	if s.outputLevels == "" {
-		s.outputLevels = levelToString[scope.DefaultLevel()]
+		s.outputLevels = scope.DefaultLevel().String()
 		if s.outputLevels == "" {
 			s.outputLevels = DefaultLogOutputLevel
 		}
@@ -102,14 +87,14 @@ func (s *service) Validate() error {
 		osl := strings.Split(ol, ":")
 		switch len(osl) {
 		case 1:
-			lvl, ok := stringToLevel[strings.Trim(ol, "\r\n\t ")]
+			lvl, ok := telemetry.FromLevel(strings.Trim(ol, "\r\n\t "))
 			if !ok {
 				mErr = multierror.Append(mErr, fmt.Errorf("%q is not a valid log level", ol))
 				continue
 			}
 			scope.SetAllScopes(lvl)
 		case 2:
-			lvl, ok := stringToLevel[strings.Trim(osl[1], "\r\n\t ")]
+			lvl, ok := telemetry.FromLevel(strings.Trim(osl[1], "\r\n\t "))
 			if !ok {
 				mErr = multierror.Append(mErr, fmt.Errorf("%q is not a valid log level", ol))
 				continue
