@@ -226,12 +226,13 @@ func Register(name, description string) telemetry.Logger {
 }
 
 // Find a scoped logger by its name.
-func Find(name string) telemetry.Logger {
+func Find(name string) (telemetry.Logger, bool) {
 	lock.Lock()
 	defer lock.Unlock()
 
 	name = strings.ToLower(strings.Trim(name, "\r\n\t "))
-	return scopes[name]
+	s, ok := scopes[name]
+	return s, ok
 }
 
 // List all registered Scopes
