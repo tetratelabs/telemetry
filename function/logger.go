@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package function provides an implementation of the telemetry.Logger interface
-// that allows uses a given function to emit logs.
+// that uses a given function to emit logs.
 package function
 
 import (
@@ -33,7 +33,7 @@ type (
 	// The function will only be called when the log actually needs to be emitted.
 	Emit func(level telemetry.Level, msg string, err error, values Values)
 
-	// Values contains all the key/value to be included when emitting logs.
+	// Values contains all the key/value pairs to be included when emitting logs.
 	Values struct {
 		// FromContext has all the key/value pairs that have been added to the Logger Context
 		FromContext []interface{}
@@ -64,6 +64,7 @@ type (
 var _ telemetry.Logger = (*Logger)(nil)
 
 // NewLogger creates a new function Logger that uses the given Emit function to write log messages.
+// Loggers are configured at telemetry.LevelInfo level by default.
 func NewLogger(emitFunc Emit) telemetry.Logger {
 	lvl := int32(telemetry.LevelInfo)
 	return &Logger{
