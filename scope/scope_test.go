@@ -73,7 +73,7 @@ func TestLogger(t *testing.T) {
 			UseLogger(function.NewLogger(emitter(&out)))
 
 			_ = Register(tt.name, "test logger")
-			logger := Find(tt.name)
+			logger, _ := Find(tt.name)
 
 			logger.SetLevel(tt.level)
 			if logger.Level() != tt.level {
@@ -107,6 +107,13 @@ func TestSetLevel(t *testing.T) {
 
 	if withvalues.Level() != telemetry.LevelError {
 		t.Fatalf("logger.Level()=%v, want: %v", withvalues.Level(), telemetry.LevelError)
+	}
+}
+
+func TestFind(t *testing.T) {
+	s, ok := Find("unexisting")
+	if ok {
+		t.Fatalf("expected Find to have returned nil, got: %v", s)
 	}
 }
 
