@@ -1,4 +1,4 @@
-// Copyright (c) Tetrate, Inc 2021.
+// Copyright 2022 Tetrate
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -22,18 +22,18 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/tetratelabs/telemetry"
-	"github.com/tetratelabs/telemetry/level"
 )
 
 var (
-	_ level.Logger = (*scope)(nil)
+	_ telemetry.Logger = (*scope)(nil)
 
 	lock          = sync.Mutex{}
 	scopes        = make(map[string]*scope)
 	uninitialized = make(map[string][]*scope)
-	defaultLogger level.Logger
+	defaultLogger telemetry.Logger
 
 	// PanicOnUninitialized can be used when testing for sequencing issues
 	// between creating log lines and initializing the actual logger
@@ -41,20 +41,10 @@ var (
 	PanicOnUninitialized bool
 )
 
-// Available log levels.
 const (
-	None  = level.None
-	Error = level.Error
-	Info  = level.Info
-	Debug = level.Debug
+	// Key used to store the name of scope in the logger key/value pairs.
+	Key = "scope"
 )
-
-var levelToString = map[level.Value]string{
-	None:  "none",
-	Error: "error",
-	Info:  "info",
-	Debug: "debug",
-}
 
 // scope provides scoped logging functionality.
 type scope struct {
@@ -64,6 +54,7 @@ type scope struct {
 	metric      telemetry.Metric
 	name        string
 	description string
+	level       *int32
 }
 
 // Debug implements telemetry.Logger.
@@ -79,7 +70,7 @@ func (s *scope) Debug(msg string, keyValuePairs ...interface{}) {
 // Info implements telemetry.Logger.
 func (s *scope) Info(msg string, keyValuePairs ...interface{}) {
 	if s.logger != nil {
-		s.logger.Debug(msg, keyValuePairs...)
+		s.logger.Info(msg, keyValuePairs...)
 	}
 	if PanicOnUninitialized {
 		panic("calling Info on uninitialized logger")
@@ -113,6 +104,7 @@ func (s *scope) With(keyValuePairs ...interface{}) telemetry.Logger {
 		kvs:         make([]interface{}, len(s.kvs), len(s.kvs)+len(keyValuePairs)),
 		ctx:         s.ctx,
 		metric:      s.metric,
+		level:       s.level,
 	}
 	copy(sc.kvs, keyValuePairs)
 	for i := 0; i < len(keyValuePairs); i += 2 {
@@ -130,16 +122,10 @@ func (s *scope) Context(ctx context.Context) telemetry.Logger {
 	if s.logger != nil {
 		return s.logger.Context(ctx)
 	}
-	sc := &scope{
-		name:        s.name,
-		description: s.description,
-		kvs:         make([]interface{}, len(s.kvs)),
-		ctx:         ctx,
-		metric:      s.metric,
-	}
-	copy(sc.kvs, s.kvs)
-	uninitialized[s.name] = append(uninitialized[s.name], sc)
 
+	sc := s.Clone()
+	sc.(*scope).ctx = ctx
+	uninitialized[s.name] = append(uninitialized[s.name], sc.(*scope))
 	return sc
 }
 
@@ -148,44 +134,66 @@ func (s *scope) Metric(m telemetry.Metric) telemetry.Logger {
 	if s.logger != nil {
 		return s.logger.Metric(m)
 	}
+
+	sc := s.Clone()
+	sc.(*scope).metric = m
+	uninitialized[s.name] = append(uninitialized[s.name], sc.(*scope))
+	return sc
+}
+
+// Clone implements level.Logger.
+func (s *scope) Clone() telemetry.Logger {
+	var logger telemetry.Logger
+	if s.logger != nil {
+		logger = s.logger.Clone()
+	}
+
 	scope := &scope{
+		logger:      logger,
 		name:        s.name,
 		description: s.description,
 		kvs:         make([]interface{}, len(s.kvs)),
 		ctx:         s.ctx,
 		metric:      s.metric,
+		level:       s.level,
 	}
+
 	copy(scope.kvs, s.kvs)
-	uninitialized[s.name] = append(uninitialized[s.name], scope)
 
 	return scope
 }
 
-// New implements level.Logger.
-func (s *scope) New() telemetry.Logger {
-	if s.logger != nil {
-		return s.logger.(level.Logger).New()
-	}
-	return nil
-}
-
 // SetLevel implements level.Logger.
-func (s *scope) SetLevel(lvl level.Value) {
+func (s *scope) SetLevel(lvl telemetry.Level) {
 	if s.logger != nil {
-		s.logger.(level.Logger).SetLevel(lvl)
+		s.logger.SetLevel(lvl)
+		return
 	}
+
+	switch {
+	case lvl < telemetry.LevelError:
+		lvl = telemetry.LevelNone
+	case lvl < telemetry.LevelInfo:
+		lvl = telemetry.LevelError
+	case lvl < telemetry.LevelDebug:
+		lvl = telemetry.LevelInfo
+	default:
+		lvl = telemetry.LevelDebug
+	}
+
+	atomic.StoreInt32(s.level, int32(lvl))
 }
 
 // Level implements level.Logger.
-func (s *scope) Level() level.Value {
+func (s *scope) Level() telemetry.Level {
 	if s.logger != nil {
-		return s.logger.(level.Logger).Level()
+		return s.logger.Level()
 	}
-	return level.None
+	return telemetry.Level(atomic.LoadInt32(s.level))
 }
 
 // Register a new scoped Logger.
-func Register(name, description string) level.Logger {
+func Register(name, description string) telemetry.Logger {
 	if strings.ContainsAny(name, ":,.") {
 		return nil
 	}
@@ -196,13 +204,18 @@ func Register(name, description string) level.Logger {
 	name = strings.ToLower(strings.Trim(name, "\r\n\t "))
 	sc, ok := scopes[name]
 	if !ok {
+		level := int32(DefaultLevel())
 		sc = &scope{
 			name:        name,
 			description: description,
+			ctx:         context.Background(),
+			kvs:         []interface{}{Key, name},
+			level:       &level,
 		}
 		if defaultLogger != nil {
-			sc.logger = defaultLogger.New()
+			sc.logger = defaultLogger.With(Key, name)
 		}
+
 		scopes[name] = sc
 	}
 	if defaultLogger == nil {
@@ -213,7 +226,7 @@ func Register(name, description string) level.Logger {
 }
 
 // Find a scoped logger by its name.
-func Find(name string) level.Logger {
+func Find(name string) telemetry.Logger {
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -222,11 +235,11 @@ func Find(name string) level.Logger {
 }
 
 // List all registered Scopes
-func List() map[string]level.Logger {
+func List() map[string]telemetry.Logger {
 	lock.Lock()
 	defer lock.Unlock()
 
-	sc := make(map[string]level.Logger, len(scopes))
+	sc := make(map[string]telemetry.Logger, len(scopes))
 	for k, v := range scopes {
 		sc[k] = v
 	}
@@ -239,7 +252,7 @@ func Names() []string {
 	lock.Lock()
 	defer lock.Unlock()
 
-	var s []string
+	s := make([]string, 0, len(scopes))
 	for k := range scopes {
 		s = append(s, k)
 	}
@@ -267,7 +280,7 @@ func PrintRegistered() {
 	fmt.Printf("- %-*s [%-5s]  %s\n",
 		pad,
 		"default",
-		levelToString[DefaultLevel()],
+		DefaultLevel().String(),
 		"",
 	)
 	for _, n := range names {
@@ -275,7 +288,7 @@ func PrintRegistered() {
 		fmt.Printf("- %-*s [%-5s]  %s\n",
 			pad,
 			sc.name,
-			levelToString[sc.Level()],
+			sc.Level().String(),
 			sc.description,
 		)
 	}
@@ -283,7 +296,7 @@ func PrintRegistered() {
 
 // SetAllScopes sets the logging level to all existing scopes and uses this
 // level for new scopes.
-func SetAllScopes(lvl level.Value) {
+func SetAllScopes(lvl telemetry.Level) {
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -296,7 +309,7 @@ func SetAllScopes(lvl level.Value) {
 }
 
 // SetDefaultLevel sets the default level used for new scopes.
-func SetDefaultLevel(lvl level.Value) {
+func SetDefaultLevel(lvl telemetry.Level) {
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -306,11 +319,11 @@ func SetDefaultLevel(lvl level.Value) {
 }
 
 // DefaultLevel returns the logging level used for new scopes.
-func DefaultLevel() level.Value {
+func DefaultLevel() telemetry.Level {
 	if defaultLogger != nil {
 		return defaultLogger.Level()
 	}
-	return level.None
+	return telemetry.LevelNone
 }
 
 // UseLogger takes a logger and updates already registered scopes to use it.
@@ -328,17 +341,11 @@ func UseLogger(logger telemetry.Logger) {
 		return
 	}
 
-	// update our default logger
-	// if provided Logger does not provide log level logic, wrap it.
-	var ok bool
-	defaultLogger, ok = logger.(level.Logger)
-	if !ok {
-		defaultLogger = level.Wrap(logger)
-	}
+	defaultLogger = logger.Clone()
 
 	// adjust already registered scopes
 	for _, scopes := range uninitialized {
-		l := defaultLogger.New()
+		l := defaultLogger.Clone()
 		for _, sc := range scopes {
 			if sc.ctx != nil {
 				l = l.Context(sc.ctx)
@@ -349,10 +356,13 @@ func UseLogger(logger telemetry.Logger) {
 			if len(sc.kvs) > 0 {
 				l = l.With(sc.kvs...)
 			}
+			l.SetLevel(sc.Level())
+
 			sc.logger = l
 			sc.kvs = nil
 			sc.ctx = nil
 			sc.metric = nil
+			sc.level = nil
 		}
 	}
 	uninitialized = nil

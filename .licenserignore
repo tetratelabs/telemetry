@@ -1,0 +1,5 @@
+/LICENSE
+.idea
+go.mod
+go.sum
+build/

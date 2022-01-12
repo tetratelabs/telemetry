@@ -1,5 +1,8 @@
 # Telemetry
 
+[![CI](https://github.com/tetratelabs/telemetry/actions/workflows/ci.yaml/badge.svg)](https://github.com/tetratelabs/telemetry/actions/workflows/ci.yaml)
+[![codecov](https://codecov.io/gh/tetratelabs/telemetry/branch/master/graph/badge.svg?token=CLZMDX2TUN)](https://codecov.io/gh/tetratelabs/telemetry)
+
 This package provides a set of Telemetry interfaces allowing you to completely
 decouple your libraries and packages from Logging and Metrics instrumentation
 implementations.
