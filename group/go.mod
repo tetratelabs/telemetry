@@ -4,8 +4,8 @@ go 1.17
 
 require (
 	github.com/tetratelabs/multierror v1.1.0
-	github.com/tetratelabs/run v0.1.0
-	github.com/tetratelabs/telemetry v0.5.2
+	github.com/tetratelabs/run v0.1.2
+	github.com/tetratelabs/telemetry v0.7.1
 )
 
 require (
