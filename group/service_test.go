@@ -15,6 +15,7 @@
 package group_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -29,14 +30,14 @@ import (
 )
 
 func TestService(t *testing.T) {
-	scope.Register("ok", "ok")
 	tests := []struct {
 		name          string
 		expectedLines []string
 		run           func(l telemetry.Logger)
 	}{
 		{
-			"test",
+			// We use test.name to initialize level.
+			"info",
 			[]string{
 				" info 	test v0.0.0-unofficial started",
 				" info 	ok",
@@ -47,24 +48,42 @@ func TestService(t *testing.T) {
 				l.Info("haha")
 			},
 		},
+		{
+			"debug",
+			[]string{
+				" info 	test v0.0.0-unofficial started",
+				" debug	ok",
+				" debug	haha",
+			},
+			func(l telemetry.Logger) {
+				l.Debug("ok")
+				l.Debug("haha")
+			},
+		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		lines, _ := captureStdout(func() {
 			var (
 				l   = log.NewUnstructured()
-				g   = &run.Group{Name: test.name, Logger: l}
+				g   = &run.Group{Name: "test", Logger: l}
 				svc = group.New(l)
 			)
-			oldArgs := os.Args
-			defer func() { os.Args = oldArgs }()
-			os.Args = []string{"cmd", "--log-output-level=ok:info"}
+			name := fmt.Sprintf("test%d", i)
+			// Register scope name after the logger is initialized.
+			scope.Register(name, "desc")
 			g.Register(svc)
+
+			oldArgs := os.Args
+			// Set current scope output level.
+			os.Args = []string{"cmd", "--log-output-level=" + name + ":" + test.name}
+			defer func() {
+				os.Args = oldArgs
+			}()
 
 			if err := g.RunConfig(); err != nil {
 				t.Fatalf("configuring run.Group: %v", err)
 			}
-
 			test.run(l)
 		})
 
