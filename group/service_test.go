@@ -24,6 +24,7 @@ import (
 
 	"github.com/tetratelabs/log"
 	"github.com/tetratelabs/run"
+
 	"github.com/tetratelabs/telemetry"
 	"github.com/tetratelabs/telemetry/group"
 	"github.com/tetratelabs/telemetry/scope"
