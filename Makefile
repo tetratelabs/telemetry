@@ -69,7 +69,7 @@ check:
 		exit 1; \
 	fi
 
-# Run command defined in first arg in each subdirs.
+# Run command defined in the first arg of this function in each defined subdir.
 define run
 	for DIR in $(SUBDIRS); do \
 		cd $$DIR && $1; \
