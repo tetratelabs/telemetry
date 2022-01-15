@@ -29,7 +29,7 @@ build:
 TEST_OPTS ?= -race
 .PHONY: test
 test:
-		$(call run,go test $(TEST_OPTS) ./...)
+	$(call run,go test $(TEST_OPTS) ./...)
 
 BENCH_OPTS ?=
 .PHONY: bench
