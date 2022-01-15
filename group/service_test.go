@@ -19,6 +19,8 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+
+	// "strconv"
 	"strings"
 	"testing"
 
@@ -63,30 +65,53 @@ func TestService(t *testing.T) {
 		},
 	}
 
+	scopeName := func(i int) string {
+		return fmt.Sprintf("test%d", i)
+	}
+
+	// Register all possible scopes. Since UseLogger will register all possible scopes and can't be
+	// changed.
 	for i, test := range tests {
-		lines, _ := captureStdout(func() {
-			var (
-				l   = log.NewUnstructured()
-				g   = &run.Group{Name: "test", Logger: l}
-				svc = group.New(l)
-			)
-			name := fmt.Sprintf("test%d", i)
-			// Register scope name after the logger is initialized.
-			scope.Register(name, "desc")
-			g.Register(svc)
+		scope.Register(scopeName(i), test.name)
+	}
 
-			oldArgs := os.Args
-			// Set current scope output level.
-			os.Args = []string{"cmd", "--log-output-level=" + name + ":" + test.name}
-			defer func() {
-				os.Args = oldArgs
-			}()
+	tmp, err := ioutil.TempFile("", "log_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldStdout := os.Stdout
+	// Redirect stdout to tmp.
+	os.Stdout = tmp
+	defer func() {
+		_ = os.Remove(tmp.Name())
+		os.Stdout = oldStdout
+	}()
 
-			if err := g.RunConfig(); err != nil {
-				t.Fatalf("configuring run.Group: %v", err)
-			}
-			test.run(l)
-		})
+	defaultLogger := log.NewUnstructured()
+	for i, test := range tests {
+		var (
+			g   = &run.Group{Name: "test", Logger: defaultLogger}
+			svc = group.New(defaultLogger)
+		)
+		g.Register(svc)
+
+		oldArgs := os.Args
+		// Set current scope output level.
+		os.Args = []string{"cmd", "--log-output-level=" + scopeName(i) + ":" + test.name}
+		defer func() {
+			os.Args = oldArgs
+		}()
+
+		if err := g.RunConfig(); err != nil {
+			t.Fatalf("configuring run.Group: %v", err)
+		}
+		test.run(defaultLogger)
+
+		content, _ := os.ReadFile(tmp.Name())
+		t.Log(string(content))
+		os.WriteFile(tmp.Name(), []byte{}, os.ModePerm)
+
+		lines := strings.Split(string(content), "\n")
 
 		for i, expectedLine := range test.expectedLines {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
@@ -98,31 +123,4 @@ func TestService(t *testing.T) {
 			})
 		}
 	}
-}
-
-// captureStdout runs the given function while capturing everything sent to stdout.
-func captureStdout(f func()) ([]string, error) {
-	tf, err := ioutil.TempFile("", "log_test")
-	if err != nil {
-		return nil, err
-	}
-
-	old := os.Stdout
-	os.Stdout = tf
-
-	f()
-
-	os.Stdout = old
-	path := tf.Name()
-	_ = tf.Sync()
-	_ = tf.Close()
-
-	content, err := os.ReadFile(path)
-	_ = os.Remove(path)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return strings.Split(string(content), "\n"), nil
 }

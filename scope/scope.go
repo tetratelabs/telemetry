@@ -338,8 +338,7 @@ func UseLogger(logger telemetry.Logger) {
 	lock.Lock()
 	defer lock.Unlock()
 
-	// Skip cloning when defaultLogger is uninitialized or the given logger is the same instance.
-	if defaultLogger != nil && logger == defaultLogger {
+	if defaultLogger != nil {
 		return
 	}
 
