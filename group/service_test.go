@@ -19,8 +19,6 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
-
-	// "strconv"
 	"strings"
 	"testing"
 
@@ -108,8 +106,7 @@ func TestService(t *testing.T) {
 		test.run(defaultLogger)
 
 		content, _ := os.ReadFile(tmp.Name())
-		t.Log(string(content))
-		os.WriteFile(tmp.Name(), []byte{}, os.ModePerm)
+		_ = os.WriteFile(tmp.Name(), []byte{}, os.ModePerm)
 
 		lines := strings.Split(string(content), "\n")
 

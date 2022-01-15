@@ -22,27 +22,32 @@ GOIMPORTS := golang.org/x/tools/cmd/goimports@v0.1.5
 .PHONY: build
 build:
 	go build ./...
+	cd group && go build ./...
 
 TEST_OPTS ?= -race
 .PHONY: test
 test:
 	go test $(TEST_OPTS) ./...
+	cd group && go test $(TEST_OPTS) ./...
 
 BENCH_OPTS ?=
 .PHONY: bench
 bench:
 	go test -bench=. $(BENCH_OPTS) ./...
+	cd group && go test -bench=. $(BENCH_OPTS) ./...
 
 .PHONY: coverage
 coverage:
 	mkdir -p build
 	go test -coverprofile build/coverage.out -covermode atomic -coverpkg '$(MODULE_PATH)/...' ./...
 	go tool cover -o build/coverage.html -html build/coverage.out
+#TODO(dio): Need to provide coverage for group.
 
 LINT_OPTS ?= --timeout 5m
 .PHONY: lint
 lint:
 	go run $(LINTER) run $(LINT_OPTS) --config .golangci.yml
+	cd group && go run $(LINTER) run $(LINT_OPTS) --config ../.golangci.yml
 
 GO_SOURCES = $(shell git ls-files | grep '.go$$')
 .PHONY: format
@@ -58,6 +63,7 @@ format:
 check:
 	@$(MAKE) format
 	@go mod tidy
+	@cd group && go mod tidy
 	@if [ ! -z "`git status -s`" ]; then \
 		echo "The following differences will fail CI until committed:"; \
 		git diff; \
