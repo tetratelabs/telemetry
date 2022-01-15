@@ -99,7 +99,7 @@ func (s *service) Validate() error {
 				mErr = multierror.Append(mErr, fmt.Errorf("%q is not a valid log level", ol))
 				continue
 			}
-			if s := scope.Find(osl[0]); s != nil {
+			if s, found := scope.Find(osl[0]); found {
 				s.SetLevel(lvl)
 			} else {
 				mErr = multierror.Append(mErr, fmt.Errorf("%q is not a registered scope", osl[0]))
