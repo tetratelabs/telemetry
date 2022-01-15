@@ -106,10 +106,7 @@ func TestService(t *testing.T) {
 		test.run(defaultLogger)
 
 		content, _ := os.ReadFile(tmp.Name())
-		_ = os.WriteFile(tmp.Name(), []byte{}, os.ModePerm)
-
 		lines := strings.Split(string(content), "\n")
-
 		for i, expectedLine := range test.expectedLines {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				entries := strings.SplitN(lines[i], " ", 3)
@@ -119,5 +116,7 @@ func TestService(t *testing.T) {
 				}
 			})
 		}
+		// Clear the content of the current temporary file.
+		_ = os.WriteFile(tmp.Name(), []byte{}, os.ModePerm)
 	}
 }
