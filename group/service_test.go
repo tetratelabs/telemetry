@@ -117,6 +117,6 @@ func TestService(t *testing.T) {
 			})
 		}
 		// Clear the content of the current temporary file.
-		_ = os.WriteFile(tmp.Name(), []byte{}, os.ModePerm)
+		_ = os.Truncate(tmp.Name(), 0)
 	}
 }
