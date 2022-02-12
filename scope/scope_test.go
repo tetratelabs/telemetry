@@ -69,15 +69,16 @@ func TestLogger(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Cleanup(cleanup)
 
+			_ = Register(tt.name, "test logger")
+
 			var out bytes.Buffer
 			UseLogger(function.NewLogger(emitter(&out)))
 
-			_ = Register(tt.name, "test logger")
 			logger, _ := Find(tt.name)
 
 			logger.SetLevel(tt.level)
 			if logger.Level() != tt.level {
-				t.Fatalf("loger.Level()=%s, want: %s", logger.Level(), tt.level)
+				t.Fatalf("logger.Level()=%s, want: %s", logger.Level(), tt.level)
 			}
 
 			metric := mockMetric{}
@@ -85,6 +86,10 @@ func TestLogger(t *testing.T) {
 			l := logger.Context(ctx).Metric(&metric).With().With(1, "").With("lvl", telemetry.LevelInfo).With("missing")
 
 			tt.logfunc(l)
+
+			if l.Level() != tt.level {
+				t.Fatalf("l.Level()=%s, want: %s", logger.Level(), tt.level)
+			}
 
 			str := out.String()
 			if str != tt.expected {
