@@ -18,6 +18,7 @@ package function
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 
 	"github.com/tetratelabs/telemetry"
@@ -57,6 +58,8 @@ type (
 		level *int32
 		// emitFunc is the function that will be used to actually emit the logs
 		emitFunc Emit
+		// scopedLevels holds per scope level.
+		scopedLevels sync.Map
 	}
 )
 
@@ -125,7 +128,13 @@ func (l *Logger) emit(level telemetry.Level, msg string, err error, keyValues []
 }
 
 // Level returns the logging level configured for this Logger.
-func (l *Logger) Level() telemetry.Level { return telemetry.Level(atomic.LoadInt32(l.level)) }
+func (l *Logger) Level() telemetry.Level {
+	v, ok := l.scopedLevels.Load(l.scope())
+	if !ok {
+		return telemetry.Level(atomic.LoadInt32(l.level))
+	}
+	return v.(telemetry.Level)
+}
 
 // SetLevel configures the logging level for the Logger.
 func (l *Logger) SetLevel(level telemetry.Level) {
@@ -140,7 +149,12 @@ func (l *Logger) SetLevel(level telemetry.Level) {
 		level = telemetry.LevelDebug
 	}
 
-	atomic.StoreInt32(l.level, int32(level))
+	scope := l.scope()
+	if scope == "" {
+		atomic.StoreInt32(l.level, int32(level))
+	} else {
+		l.scopedLevels.Store(scope, level)
+	}
 }
 
 // enabled checks if the current Logger should emit log messages for the given
@@ -197,4 +211,20 @@ func (l *Logger) Clone() telemetry.Logger {
 	copy(newLogger.args, l.args)
 
 	return newLogger
+}
+
+// scopeFromArgs infer scope from args.
+func (l *Logger) scope() string {
+	for i, arg := range l.args {
+		k, ok := arg.(string)
+		if ok && k == "scope" {
+			if len(l.args) > i+1 {
+				v, ok := l.args[i+1].(string)
+				if ok {
+					return v
+				}
+			}
+		}
+	}
+	return ""
 }
