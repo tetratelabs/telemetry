@@ -205,7 +205,7 @@ func (l *Logger) Clone() telemetry.Logger {
 		ctx:          l.ctx,
 		metric:       l.metric,
 		level:        l.level,
-		scopedLevels: cloneSyncMap(l.scopedLevels),
+		scopedLevels: l.scopedLevels, // by reference.
 		emitFunc:     l.emitFunc,
 	}
 
@@ -228,20 +228,4 @@ func (l *Logger) scope() string {
 		}
 	}
 	return ""
-}
-
-// cloneSyncMap clones a sync.Map to another.
-func cloneSyncMap(m sync.Map) sync.Map {
-	var copied sync.Map
-
-	m.Range(func(k, v interface{}) bool {
-		vm, ok := v.(sync.Map)
-		if ok {
-			copied.Store(k, cloneSyncMap(vm))
-		} else {
-			copied.Store(k, v)
-		}
-		return true
-	})
-	return copied
 }
