@@ -110,6 +110,28 @@ func TestSetLevel(t *testing.T) {
 	}
 }
 
+func TestTwoScopes(t *testing.T) {
+	scopeA := Register("a", "Messages from a")
+	scopeB := Register("b", "Messages from b")
+	UseLogger(function.NewLogger(func(level telemetry.Level, msg string, err error, values function.Values) {
+		// Do nothing
+	}))
+
+	scopeA.SetLevel(telemetry.LevelDebug)
+	scopeB.SetLevel(telemetry.LevelDebug)
+
+	if scopeA.Level() != telemetry.LevelDebug || scopeB.Level() != telemetry.LevelDebug {
+		t.Fatalf("logger.Level=%s / logger2.Level=%s, want: %s/%s",
+			scopeA.Level().String(), scopeB.Level().String(), telemetry.LevelDebug, telemetry.LevelDebug)
+	}
+
+	scopeA.SetLevel(telemetry.LevelInfo)
+	if scopeA.Level() != telemetry.LevelInfo || scopeB.Level() != telemetry.LevelDebug {
+		t.Fatalf("logger.Level=%s / logger2.Level=%s, want: %s/%s",
+			scopeA.Level().String(), scopeB.Level().String(), telemetry.LevelInfo, telemetry.LevelDebug)
+	}
+}
+
 func TestFind(t *testing.T) {
 	s, ok := Find("unexisting")
 	if ok {

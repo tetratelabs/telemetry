@@ -91,14 +91,62 @@ func TestLogger(t *testing.T) {
 	}
 }
 
-func TestSetLevel(t *testing.T) {
+func TestSetUnexpectedLevel(t *testing.T) {
 	logger := NewLogger(nil)
-
 	withvalues := logger.With("key", "value")
 	logger.SetLevel(telemetry.LevelInfo - 1)
 
 	if withvalues.Level() != telemetry.LevelError {
 		t.Fatalf("Logger.Level()=%v, want: %v", withvalues.Level(), telemetry.LevelError)
+	}
+}
+
+func TestClone(t *testing.T) {
+	logger := NewLogger(nil)
+
+	// Enhancing a logger with values does not alter the logger itself, and setting hte level should
+	// affect the enhanced logger and the original one. We're not altering the 'scope' here.
+	withvalues := logger.With("key", "value").Context(context.Background()).Metric(nil)
+
+	// Cloning a logger returns a new independent one, with the logging level detached from the original
+	cloned := withvalues.Clone()
+
+	// Verify that the level is properly set. The level should affect both, as it is the same logger
+	// with just additional info; it is not a clone.
+	logger.SetLevel(telemetry.LevelDebug)
+
+	if logger.Level() != telemetry.LevelDebug {
+		t.Fatalf("logger.Level()=%v, want: %v", logger.Level(), telemetry.LevelDebug)
+	}
+	if withvalues.Level() != telemetry.LevelDebug {
+		t.Fatalf("withvalues.Level()=%v, want: %v", withvalues.Level(), telemetry.LevelDebug)
+	}
+	if cloned.Level() != telemetry.LevelInfo {
+		t.Fatalf("cloned.Level()=%v, want: %v", cloned.Level(), telemetry.LevelInfo)
+	}
+
+	withvalues.SetLevel(telemetry.LevelNone)
+
+	if logger.Level() != telemetry.LevelNone {
+		t.Fatalf("logger.Level()=%v, want: %v", logger.Level(), telemetry.LevelNone)
+	}
+	if withvalues.Level() != telemetry.LevelNone {
+		t.Fatalf("withvalues.Level()=%v, want: %v", withvalues.Level(), telemetry.LevelNone)
+	}
+	if cloned.Level() != telemetry.LevelInfo {
+		t.Fatalf("cloned.Level()=%v, want: %v", cloned.Level(), telemetry.LevelInfo)
+	}
+
+	cloned.SetLevel(telemetry.LevelError)
+
+	if logger.Level() != telemetry.LevelNone {
+		t.Fatalf("logger.Level()=%v, want: %v", logger.Level(), telemetry.LevelNone)
+	}
+	if withvalues.Level() != telemetry.LevelNone {
+		t.Fatalf("withvalues.Level()=%v, want: %v", withvalues.Level(), telemetry.LevelNone)
+	}
+	if cloned.Level() != telemetry.LevelError {
+		t.Fatalf("cloned.Level()=%v, want: %v", cloned.Level(), telemetry.LevelError)
 	}
 }
 
