@@ -156,7 +156,9 @@ func (l *Logger) With(keyValues ...interface{}) telemetry.Logger {
 		keyValues = append(keyValues, "(MISSING)")
 	}
 
-	newLogger := l.Clone().(*Logger)
+	// We don't call Clone() here as we don't want to deference the level pointer;
+	// we just want to add the given args.
+	newLogger := newLoggerWithValues(l.ctx, l.metric, l.level, l.emitFunc, l.args)
 
 	for i := 0; i < len(keyValues); i += 2 {
 		if k, ok := keyValues[i].(string); ok {
@@ -170,31 +172,37 @@ func (l *Logger) With(keyValues ...interface{}) telemetry.Logger {
 // Context attaches provided Context to the Logger allowing metadata found in
 // this context to be used for log lines and metrics labels.
 func (l *Logger) Context(ctx context.Context) telemetry.Logger {
-	newLogger := l.Clone()
-	newLogger.(*Logger).ctx = ctx
-	return newLogger
+	// We don't call Clone() here as we don't want to deference the level pointer;
+	// we just want to set the context.
+	return newLoggerWithValues(ctx, l.metric, l.level, l.emitFunc, l.args)
 }
 
 // Metric attaches provided Metric to the Logger allowing this metric to
 // record each invocation of Info and Error log lines. If context is available
 // in the Logger, it can be used for Metrics labels.
 func (l *Logger) Metric(m telemetry.Metric) telemetry.Logger {
-	newLogger := l.Clone()
-	newLogger.(*Logger).metric = m
-	return newLogger
+	// We don't call Clone() here as we don't want to deference the level pointer;
+	// we just want to set the metric.
+	return newLoggerWithValues(l.ctx, m, l.level, l.emitFunc, l.args)
 }
 
 // Clone the current Logger and return it
 func (l *Logger) Clone() telemetry.Logger {
+	// When cloning the logger, we don't want both logger to share a level.
+	// We need to dereference the pointer and set the level properly.
+	lvl := *l.level
+	return newLoggerWithValues(l.ctx, l.metric, &lvl, l.emitFunc, l.args)
+}
+
+// newLoggerWithValues creates a new instance of a logger with the given data.
+func newLoggerWithValues(ctx context.Context, m telemetry.Metric, l *int32, f Emit, args []interface{}) *Logger {
 	newLogger := &Logger{
-		args:     make([]interface{}, len(l.args)),
-		ctx:      l.ctx,
-		metric:   l.metric,
-		level:    l.level,
-		emitFunc: l.emitFunc,
+		args:     make([]interface{}, len(args)),
+		ctx:      ctx,
+		metric:   m,
+		level:    l,
+		emitFunc: f,
 	}
-
-	copy(newLogger.args, l.args)
-
+	copy(newLogger.args, args)
 	return newLogger
 }
