@@ -19,30 +19,35 @@ LINTER    := github.com/golangci/golangci-lint/cmd/golangci-lint@v1.43.0
 LICENSER  := github.com/liamawhite/licenser@v0.6.1-0.20210729145742-be6c77bf6a1f
 GOIMPORTS := golang.org/x/tools/cmd/goimports@v0.1.5
 
+# List of available module subdirs.
+SUBDIRS := . group
+
 .PHONY: build
 build:
-	go build ./...
+	$(call run,go build ./...)
 
 TEST_OPTS ?= -race
 .PHONY: test
 test:
-	go test $(TEST_OPTS) ./...
+	$(call run,go test $(TEST_OPTS) ./...)
 
 BENCH_OPTS ?=
 .PHONY: bench
 bench:
-	go test -bench=. $(BENCH_OPTS) ./...
+	$(call run,go test -bench=. $(BENCH_OPTS) ./...)
 
 .PHONY: coverage
 coverage:
 	mkdir -p build
 	go test -coverprofile build/coverage.out -covermode atomic -coverpkg '$(MODULE_PATH)/...' ./...
 	go tool cover -o build/coverage.html -html build/coverage.out
+# TODO(dio): Need to provide coverage for group.
 
+LINT_CONFIG := $(dir $(abspath $(lastword $(MAKEFILE_LIST)))).golangci.yml
 LINT_OPTS ?= --timeout 5m
 .PHONY: lint
 lint:
-	go run $(LINTER) run $(LINT_OPTS) --config .golangci.yml
+	$(call run,go run $(LINTER) run $(LINT_OPTS) --config $(LINT_CONFIG))
 
 GO_SOURCES = $(shell git ls-files | grep '.go$$')
 .PHONY: format
@@ -57,9 +62,16 @@ format:
 .PHONY: check
 check:
 	@$(MAKE) format
-	@go mod tidy
+	$(call run,go mod tidy)
 	@if [ ! -z "`git status -s`" ]; then \
 		echo "The following differences will fail CI until committed:"; \
 		git diff; \
 		exit 1; \
 	fi
+
+# Run command defined in the first arg of this function in each defined subdir.
+define run
+	for DIR in $(SUBDIRS); do \
+		cd $$DIR && $1; \
+	done
+endef
