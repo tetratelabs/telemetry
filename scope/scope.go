@@ -46,6 +46,18 @@ const (
 	Key = "scope"
 )
 
+// Scope configures a named logger that can be configured independently.
+type Scope interface {
+	telemetry.Logger
+
+	// Name of the logging scope
+	Name() string
+	// Description of the logging scope
+	Description() string
+}
+
+var _ Scope = (*scope)(nil)
+
 // scope provides scoped logging functionality.
 type scope struct {
 	logger      telemetry.Logger
@@ -55,6 +67,16 @@ type scope struct {
 	name        string
 	description string
 	level       *int32
+}
+
+// Name of the logging scope
+func (s *scope) Name() string {
+	return s.name
+}
+
+// Description of the logging scope
+func (s *scope) Description() string {
+	return s.description
 }
 
 // Debug implements telemetry.Logger.
@@ -193,7 +215,7 @@ func (s *scope) Level() telemetry.Level {
 }
 
 // Register a new scoped Logger.
-func Register(name, description string) telemetry.Logger {
+func Register(name, description string) Scope {
 	if strings.ContainsAny(name, ":,.") {
 		return nil
 	}
@@ -226,7 +248,7 @@ func Register(name, description string) telemetry.Logger {
 }
 
 // Find a scoped logger by its name.
-func Find(name string) (telemetry.Logger, bool) {
+func Find(name string) (Scope, bool) {
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -236,11 +258,11 @@ func Find(name string) (telemetry.Logger, bool) {
 }
 
 // List all registered Scopes
-func List() map[string]telemetry.Logger {
+func List() map[string]Scope {
 	lock.Lock()
 	defer lock.Unlock()
 
-	sc := make(map[string]telemetry.Logger, len(scopes))
+	sc := make(map[string]Scope, len(scopes))
 	for k, v := range scopes {
 		sc[k] = v
 	}

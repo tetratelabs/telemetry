@@ -15,7 +15,6 @@
 package group_test
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -40,9 +39,9 @@ func TestService(t *testing.T) {
 			// We use test.name to initialize level.
 			"info",
 			[]string{
-				" info 	test v0.0.0-unofficial started",
-				" info 	ok",
-				" info 	haha",
+				" info 	test v0.0.0-unofficial started [scope=\"test-info\"]",
+				" info 	ok [scope=\"test-info\"]",
+				" info 	haha [scope=\"test-info\"]",
 			},
 			func(l telemetry.Logger) {
 				l.Info("ok")
@@ -52,9 +51,9 @@ func TestService(t *testing.T) {
 		{
 			"debug",
 			[]string{
-				" info 	test v0.0.0-unofficial started",
-				" debug	ok",
-				" debug	haha",
+				" info 	test v0.0.0-unofficial started [scope=\"test-debug\"]",
+				" debug	ok [scope=\"test-debug\"]",
+				" debug	haha [scope=\"test-debug\"]",
 			},
 			func(l telemetry.Logger) {
 				l.Debug("ok")
@@ -63,14 +62,14 @@ func TestService(t *testing.T) {
 		},
 	}
 
-	scopeName := func(i int) string {
-		return fmt.Sprintf("test%d", i)
+	scopeName := func(n string) string {
+		return "test-" + n
 	}
 
 	// Register all possible scopes. Since UseLogger will register all possible scopes and can't be
 	// changed.
-	for i, test := range tests {
-		scope.Register(scopeName(i), test.name)
+	for _, test := range tests {
+		scope.Register(scopeName(test.name), test.name)
 	}
 
 	tmp, err := ioutil.TempFile("", "log_test")
@@ -86,29 +85,28 @@ func TestService(t *testing.T) {
 	}()
 
 	defaultLogger := log.NewUnstructured()
-	for i, test := range tests {
+	for _, test := range tests {
 		var (
-			g   = &run.Group{Name: "test", Logger: defaultLogger}
-			svc = group.New(defaultLogger)
+			s, _ = scope.Find(scopeName(test.name))
+			g    = &run.Group{Name: "test", Logger: s}
+			svc  = group.New(defaultLogger)
 		)
 		g.Register(svc)
 
 		oldArgs := os.Args
 		// Set current scope output level.
-		os.Args = []string{"cmd", "--log-output-level=" + scopeName(i) + ":" + test.name}
-		defer func() {
-			os.Args = oldArgs
-		}()
+		os.Args = []string{"cmd", "--log-output-level=" + scopeName(test.name) + ":" + test.name}
 
 		if err := g.RunConfig(); err != nil {
 			t.Fatalf("configuring run.Group: %v", err)
 		}
-		test.run(defaultLogger)
+
+		test.run(s)
 
 		content, _ := os.ReadFile(tmp.Name())
 		lines := strings.Split(string(content), "\n")
 		for i, expectedLine := range test.expectedLines {
-			t.Run(strconv.Itoa(i), func(t *testing.T) {
+			t.Run(test.name+strconv.Itoa(i), func(t *testing.T) {
 				entries := strings.SplitN(lines[i], " ", 3)
 				entry := entries[len(entries)-1]
 				if entry != expectedLine {
@@ -118,5 +116,6 @@ func TestService(t *testing.T) {
 		}
 		// Clear the content of the current temporary file.
 		_ = os.Truncate(tmp.Name(), 0)
+		os.Args = oldArgs
 	}
 }
