@@ -235,7 +235,7 @@ func Register(name, description string) Scope {
 			level:       &level,
 		}
 		if defaultLogger != nil {
-			sc.logger = defaultLogger.With(Key, name)
+			sc.logger = defaultLogger.Clone().With(Key, name)
 		}
 
 		scopes[name] = sc
