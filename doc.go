@@ -1,4 +1,4 @@
-// Copyright 2022 Tetrate
+// Copyright (c) Tetrate, Inc 2023.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -23,10 +23,12 @@ to plug in the implementations of their choice.
 
 The following requirements helped shape the form of the interfaces.
 
-	* Simple to use!
+  - Simple to use!
+
 Or developers will resort to using `fmt.Printf()`
 
-	* No elaborate amount of logging levels.
+  - No elaborate amount of logging levels.
+
 Error: something happened that we can't gracefully recover from.
 This is a log line that should be actionable by an operator and be
 alerted on.
@@ -49,27 +51,30 @@ logger with more levels.
 We also believe that most logs should be metrics. Anything above Debug level
 should be able to emit a metric which can be use for dashboards, alerting, etc.
 
-	* Structured logging from the interface side.
+  - Structured logging from the interface side.
+
 We want the ability to rollup / aggregate over the same message while allowing
 for contextual data to be added. A logging implementation can make the choice
 how to present to provided log data. This can be 100% structured, a single log
 line, or a combination.
 
-	* Allow pass through of contextual values.
+  - Allow pass through of contextual values.
+
 Allow the Go Context object to be passed and have a registry for values of
 interest we want to pull from context. A good example of an item we want to
 automatically include in log lines is the `x-request-id` so we can tie log
 lines produced in the request path together.
 
-	* Allow each component to have their own "scope".
+  - Allow each component to have their own "scope".
+
 This allows us to control per component which levels of log lines we want
 to output at runtime. The interface design allows for this to be
 implemented without having an opinion on it. By providing at each library
 or component entry point the ability to provide a Logger implementation,
 this can be easily achieved.
 
-	* Zero dependencies.
-Look at that lovely very empty go.mod and non-existent go.sum file.
+  - Zero dependencies.
 
+Look at that lovely very empty go.mod and non-existent go.sum file.
 */
 package telemetry

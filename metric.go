@@ -1,4 +1,4 @@
-// Copyright 2022 Tetrate
+// Copyright (c) Tetrate, Inc 2023.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -63,6 +63,23 @@ type Metric interface {
 	With(labelValues ...LabelValue) Metric
 }
 
+// DerivedMetric can be used to supply values that dynamically derive from internal
+// state, but are not updated based on any specific event. Their value will be calculated
+// based on a value func that executes when the metrics are exported.
+//
+// At the moment, only a Gauge type is supported.
+type DerivedMetric interface {
+	// Name returns the name value of a DerivedMetric.
+	Name() string
+
+	// ValueFrom is used to update the derived value with the provided
+	// function and the associated label values. If the metric is unlabeled,
+	// ValueFrom may be called without any labelValues. Otherwise, the labelValues
+	// supplied MUST match the label keys supplied at creation time both in number
+	// and in order.
+	ValueFrom(valueFn func() float64, labelValues ...LabelValue) DerivedMetric
+}
+
 // LabelValue holds an action to take on a metric dimension's value.
 type LabelValue interface{}
 
@@ -111,11 +128,24 @@ type MetricSink interface {
 	ContextWithLabels(ctx context.Context, values ...LabelValue) (context.Context, error)
 }
 
+// DerivedMetricSink bridges libraries bootstrapping metrics from metrics
+// instrumentation implementations.
+type DerivedMetricSink interface {
+	// NewDerivedGauge intents to create a new Metric with an aggregation type
+	// of LastValue. That means that data collected by the new Metric will
+	// export only the last recorded value.
+	// Unlike NewGauge, the DerivedGauge accepts functions which are called to
+	// get the current value.
+	NewDerivedGauge(name, description string) DerivedMetric
+}
+
 // MetricOption implements a functional option type for our Metrics.
 type MetricOption func(*MetricOptions)
 
 // MetricOptions hold commonly used but optional Metric configuration.
 type MetricOptions struct {
+	// EnabledCondition can hold a function which decides if metric is enabled.
+	EnabledCondition func() bool
 	// Unit holds the unit specifier of a Metric.
 	Unit Unit
 	// Labels holds the registered dimensions for the Metric.
@@ -135,5 +165,14 @@ func WithLabels(labels ...Label) MetricOption {
 func WithUnit(unit Unit) MetricOption {
 	return func(opts *MetricOptions) {
 		opts.Unit = unit
+	}
+}
+
+// WithEnabled allows a metric to be conditionally enabled if the provided
+// function returns true.
+// If disabled, metric operations will do nothing.
+func WithEnabled(enabled func() bool) MetricOption {
+	return func(opts *MetricOptions) {
+		opts.EnabledCondition = enabled
 	}
 }
