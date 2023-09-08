@@ -134,7 +134,9 @@ func (s *scope) With(keyValuePairs ...interface{}) telemetry.Logger {
 			sc.kvs = append(sc.kvs, k, keyValuePairs[i+1])
 		}
 	}
+	lock.Lock()
 	uninitialized[s.name] = append(uninitialized[s.name], sc)
+	lock.Unlock()
 
 	return sc
 }
@@ -147,7 +149,9 @@ func (s *scope) Context(ctx context.Context) telemetry.Logger {
 
 	sc := s.Clone()
 	sc.(*scope).ctx = ctx
+	lock.Lock()
 	uninitialized[s.name] = append(uninitialized[s.name], sc.(*scope))
+	lock.Unlock()
 	return sc
 }
 
@@ -159,7 +163,9 @@ func (s *scope) Metric(m telemetry.Metric) telemetry.Logger {
 
 	sc := s.Clone()
 	sc.(*scope).metric = m
+	lock.Lock()
 	uninitialized[s.name] = append(uninitialized[s.name], sc.(*scope))
+	lock.Unlock()
 	return sc
 }
 
@@ -226,7 +232,7 @@ func Register(name, description string) Scope {
 	name = strings.ToLower(strings.Trim(name, "\r\n\t "))
 	sc, ok := scopes[name]
 	if !ok {
-		level := int32(DefaultLevel())
+		level := int32(defaultLevel())
 		sc = &scope{
 			name:        name,
 			description: description,
@@ -249,11 +255,10 @@ func Register(name, description string) Scope {
 
 // Find a scoped logger by its name.
 func Find(name string) (Scope, bool) {
-	lock.Lock()
-	defer lock.Unlock()
-
 	name = strings.ToLower(strings.Trim(name, "\r\n\t "))
+	lock.Lock()
 	s, ok := scopes[name]
+	lock.Unlock()
 	return s, ok
 }
 
@@ -303,7 +308,7 @@ func PrintRegistered() {
 	fmt.Printf("- %-*s [%-5s]  %s\n",
 		pad,
 		"default",
-		DefaultLevel().String(),
+		defaultLevel().String(),
 		"",
 	)
 	for _, n := range names {
@@ -343,6 +348,13 @@ func SetDefaultLevel(lvl telemetry.Level) {
 
 // DefaultLevel returns the logging level used for new scopes.
 func DefaultLevel() telemetry.Level {
+	lock.Lock()
+	defer lock.Unlock()
+
+	return defaultLevel()
+}
+
+func defaultLevel() telemetry.Level {
 	if defaultLogger != nil {
 		return defaultLogger.Level()
 	}

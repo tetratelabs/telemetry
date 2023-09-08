@@ -20,11 +20,45 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
+	"sync"
 	"testing"
 
 	"github.com/tetratelabs/telemetry"
 	"github.com/tetratelabs/telemetry/function"
 )
+
+func TestParallel(t *testing.T) {
+	logger := Register("root", "root scope")
+	ctx := context.Background()
+	wg := sync.WaitGroup{}
+	routines := 100
+	wg.Add(4 * routines)
+	m := &mockMetric{}
+	for i := 0; i < routines; i++ {
+		scopeName := strconv.Itoa(i - i%2)
+		go func() {
+			l := logger.Context(ctx).Metric(m).With("key", "value")
+			l.Debug("test log line")
+			wg.Done()
+		}()
+		go func() {
+			Register(scopeName, "test scope")
+			wg.Done()
+		}()
+		go func() {
+			lvl := DefaultLevel()
+			logger.Debug(strconv.Itoa(int(lvl)))
+			wg.Done()
+		}()
+		go func() {
+			SetDefaultLevel(telemetry.LevelInfo)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	cleanup()
+}
 
 func TestLogger(t *testing.T) {
 	emitter := func(w io.Writer) function.Emit {
