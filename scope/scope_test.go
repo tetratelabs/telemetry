@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"testing"
 
 	"github.com/tetratelabs/telemetry"
@@ -136,6 +137,17 @@ func TestFind(t *testing.T) {
 	s, ok := Find("unexisting")
 	if ok {
 		t.Fatalf("expected Find to have returned nil, got: %v", s)
+	}
+}
+
+func TestDataRace(t *testing.T) {
+	scope := Register("test", "Test data race")
+	for i := 0; i < 10; i++ {
+		index := i
+		go func() {
+			log := scope.With("goroutine", strconv.Itoa(index))
+			log.Info("message")
+		}()
 	}
 }
 
