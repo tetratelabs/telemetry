@@ -18,17 +18,19 @@ import "context"
 
 // NoopLogger returns a no-op logger.
 func NoopLogger() Logger {
-	return noopLogger{}
+	return &noopLogger{level: LevelNone}
 }
 
-type noopLogger struct{}
+type noopLogger struct {
+	level Level
+}
 
-func (noopLogger) Debug(string, ...interface{})          {}
-func (noopLogger) Info(string, ...interface{})           {}
+func (*noopLogger) Debug(string, ...interface{})         {}
+func (*noopLogger) Info(string, ...interface{})          {}
 func (n noopLogger) Error(string, error, ...interface{}) {}
-func (n noopLogger) SetLevel(Level)                      {}
-func (n noopLogger) Level() Level                        { return LevelNone }
-func (n noopLogger) With(...interface{}) Logger          { return n }
-func (n noopLogger) Context(context.Context) Logger      { return n }
-func (n noopLogger) Metric(Metric) Logger                { return n }
-func (n noopLogger) Clone() Logger                       { return NoopLogger() }
+func (n *noopLogger) SetLevel(l Level)                   { n.level = l }
+func (n *noopLogger) Level() Level                       { return n.level }
+func (n *noopLogger) With(...interface{}) Logger         { return n }
+func (n *noopLogger) Context(context.Context) Logger     { return n }
+func (n *noopLogger) Metric(Metric) Logger               { return n }
+func (n *noopLogger) Clone() Logger                      { return NoopLogger() }
