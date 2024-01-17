@@ -39,9 +39,13 @@ func TestNoopLogger(t *testing.T) {
 			l := NoopLogger().Context(ctx).Metric(&metric).With().With("lvl", LevelInfo).With("missing")
 
 			tt.logfunc(l)
-
 			if metric.count != 0 {
 				t.Fatalf("metric.count=%v, want 0", metric.count)
+			}
+
+			l.SetLevel(LevelDebug)
+			if l.Level() != LevelDebug {
+				t.Fatalf("l.Level()=%v, want LevelDebug", l.Level())
 			}
 		})
 	}
